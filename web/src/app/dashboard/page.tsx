@@ -104,6 +104,19 @@ export default function DashboardPage() {
     return () => unsub();
   }, []);
 
+useEffect(() => {
+  if (!session) return;
+  if (session.isManager) return; // gerente não precisa disso
+
+  backfillMyShiftsFromName({
+    staffName: session.name,
+    area: session.area,
+    email: session.email,
+    uid: session.authUid,
+  }).catch(() => {});
+}, [session?.authUid]);
+
+  
   useEffect(() => {
     (async () => {
       setLoading(true);
