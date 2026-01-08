@@ -1,4 +1,3 @@
-// src/lib/staff.ts
 import {
   addDoc,
   collection,
@@ -27,36 +26,71 @@ export type StaffMember = {
 };
 
 function mapDoc(d: any): StaffMember {
-  const data = d.data() as any;
+  const data = d.data() || {};
   return {
     id: d.id,
     name: data.name || "",
     area: (data.area as StaffArea) || "Front",
-    email: (data.email || "").toLowerCase(),
+    email: data.email || "",
     claimedByUid: data.claimedByUid || "",
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
 }
 
-export const listStaffByArea = async (area: StaffArea): Promise<StaffMember[]> => {
-  const q = query(collection(db, "staff"), where("area", "==", area), limit(200));
-  const snap = await getDocs(q);
-  return snap.docs.map(mapDoc);
+/** ========== Pending Staff (SSR safe) ========== */
+const PENDING_KEY = "pendingStaffId";
+export const setPendingStaffId = (id: string) => {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(PENDING_KEY, id);
+  } catch {}
 };
 
-export const listAllStaff = async (): Promise<StaffMember[]> => {
-  const snap = await getDocs(query(collection(db, "staff"), limit(500)));
-  return snap.docs.map(mapDoc);
+export const getPendingStaffId = () => {
+  try {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(PENDING_KEY) || "";
+  } catch {
+    return "";
+  }
 };
+
+export const clearPendingStaffId = () => {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(PENDING_KEY);
+  } catch {}
+};
+
+/** ========== Queries ========== */
 
 export const findStaffByEmail = async (email: string): Promise<StaffMember | null> => {
-  const em = (email || "").trim().toLowerCase();
-  if (!em) return null;
-  const q = query(collection(db, "staff"), where("email", "==", em), limit(1));
+  const e = (email || "").trim().toLowerCase();
+  if (!e) return null;
+
+  const q = query(collection(db, "staff"), where("email", "==", e), limit(1));
   const snap = await getDocs(q);
   if (snap.empty) return null;
   return mapDoc(snap.docs[0]);
+};
+
+export const listUnclaimedStaff = async (area: StaffArea): Promise<StaffMember[]> => {
+  // “não claimed” = claimedByUid vazio
+  const q = query(
+    collection(db, "staff"),
+    where("area", "==", area),
+    where("claimedByUid", "==", ""),
+    limit(200)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(mapDoc);
+};
+
+export const listStaffByArea = async (area: StaffArea): Promise<StaffMember[]> => {
+  const q = query(collection(db, "staff"), where("area", "==", area), limit(300));
+  const snap = await getDocs(q);
+  return snap.docs.map(mapDoc);
 };
 
 export const getStaff = async (id: string): Promise<StaffMember | null> => {
@@ -65,6 +99,8 @@ export const getStaff = async (id: string): Promise<StaffMember | null> => {
   if (!snap.exists()) return null;
   return mapDoc({ id: snap.id, data: () => snap.data() });
 };
+
+/** ========== Mutations ========== */
 
 export const createStaff = async (name: string, area: StaffArea): Promise<string> => {
   const ref = await addDoc(collection(db, "staff"), {
@@ -78,7 +114,7 @@ export const createStaff = async (name: string, area: StaffArea): Promise<string
   return ref.id;
 };
 
-export const setStaffEmail = async (staffId: string, email: string): Promise<void> => {
+export const setStaffEmail = async (staffId: string, email: string) => {
   const clean = (email || "").trim().toLowerCase();
   await updateDoc(doc(db, "staff", staffId), {
     email: clean,
@@ -86,38 +122,15 @@ export const setStaffEmail = async (staffId: string, email: string): Promise<voi
   });
 };
 
-export const claimStaff = async (staffId: string, authUid: string): Promise<void> => {
+export const claimStaff = async (staffId: string, authUid: string) => {
   await updateDoc(doc(db, "staff", staffId), {
     claimedByUid: authUid,
     updatedAt: serverTimestamp(),
   });
 };
 
-export const removeStaff = async (staffId: string): Promise<void> => {
+export const removeStaff = async (staffId: string) => {
   await deleteDoc(doc(db, "staff", staffId));
 };
 
-// helper opcional: salva qual staff o usuário escolheu antes de mandar magic link
-export const setPendingStaffId = (staffId: string): void => {
-  try {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("pendingStaffId", staffId);
-  } catch {}
-};
-
-export const getPendingStaffId = (): string | null => {
-  try {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem("pendingStaffId");
-  } catch {
-    return null;
-  }
-};
-
-export const clearPendingStaffId = (): void => {
-  try {
-    if (typeof window === "undefined") return;
-    window.localStorage.removeItem("pendingStaffId");
-  } catch {}
-};
 
