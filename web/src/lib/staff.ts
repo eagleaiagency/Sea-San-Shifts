@@ -47,6 +47,15 @@ export async function listUnclaimedStaff(area: StaffArea): Promise<StaffMember[]
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
+export async function setStaffEmail(id: string, email: string) {
+  const clean = (email || "").trim().toLowerCase();
+  await updateDoc(doc(db, "staff", id), {
+    email: clean,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+
 export async function findStaffByEmail(email: string): Promise<StaffMember | null> {
   const q = query(collection(db, "staff"), where("email", "==", email.toLowerCase()), limit(1));
   const snap = await getDocs(q);
