@@ -21,58 +21,54 @@ export type StaffMember = {
   name: string;
   area: StaffArea;
   email?: string;
-  claimedByUid?: string; // auth uid
+  claimedByUid?: string;
   createdAt?: any;
   updatedAt?: any;
 };
 
 function mapDoc(d: any): StaffMember {
-  return { id: d.id, ...(d.data() as any) } as StaffMember;
+  const data = d.data() as any;
+  return {
+    id: d.id,
+    name: data.name || "",
+    area: (data.area as StaffArea) || "Front",
+    email: (data.email || "").toLowerCase(),
+    claimedByUid: data.claimedByUid || "",
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
 }
 
-export async function listStaffByArea(area: StaffArea): Promise<StaffMember[]> {
-  const q = query(collection(db, "staff"), where("area", "==", area));
+export const listStaffByArea = async (area: StaffArea): Promise<StaffMember[]> => {
+  const q = query(collection(db, "staff"), where("area", "==", area), limit(200));
   const snap = await getDocs(q);
-  return snap.docs.map(mapDoc).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-}
+  return snap.docs.map(mapDoc);
+};
 
-export async function listUnclaimedStaff(area: StaffArea): Promise<StaffMember[]> {
-  // "unclaimed" = claimedByUid vazio
-  // e "não tem email ainda" OU tem email mas ainda não claimado (serve pra quando user colocou email mas não logou ainda)
-  const q = query(collection(db, "staff"), where("area", "==", area));
-  const snap = await getDocs(q);
-  return snap.docs
-    .map(mapDoc)
-    .filter((s) => !s.claimedByUid)
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-}
+export const listAllStaff = async (): Promise<StaffMember[]> => {
+  const snap = await getDocs(query(collection(db, "staff"), limit(500)));
+  return snap.docs.map(mapDoc);
+};
 
-export async function setStaffEmail(id: string, email: string) {
-  const clean = (email || "").trim().toLowerCase();
-  await updateDoc(doc(db, "staff", id), {
-    email: clean,
-    updatedAt: serverTimestamp(),
-  });
-}
-
-
-export async function findStaffByEmail(email: string): Promise<StaffMember | null> {
-  const q = query(collection(db, "staff"), where("email", "==", email.toLowerCase()), limit(1));
+export const findStaffByEmail = async (email: string): Promise<StaffMember | null> => {
+  const em = (email || "").trim().toLowerCase();
+  if (!em) return null;
+  const q = query(collection(db, "staff"), where("email", "==", em), limit(1));
   const snap = await getDocs(q);
   if (snap.empty) return null;
   return mapDoc(snap.docs[0]);
-}
+};
 
-export async function getStaff(id: string): Promise<StaffMember | null> {
+export const getStaff = async (id: string): Promise<StaffMember | null> => {
   const ref = doc(db, "staff", id);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   return mapDoc({ id: snap.id, data: () => snap.data() });
-}
+};
 
-export async function createStaff(name: string, area: StaffArea): Promise<string> {
+export const createStaff = async (name: string, area: StaffArea): Promise<string> => {
   const ref = await addDoc(collection(db, "staff"), {
-    name: name.trim(),
+    name: (name || "").trim(),
     area,
     email: "",
     claimedByUid: "",
@@ -80,43 +76,48 @@ export async function createStaff(name: string, area: StaffArea): Promise<string
     updatedAt: serverTimestamp(),
   });
   return ref.id;
-}
+};
 
-export const setStaffEmail = async (staffId: string, email: string) => {
+export const setStaffEmail = async (staffId: string, email: string): Promise<void> => {
+  const clean = (email || "").trim().toLowerCase();
   await updateDoc(doc(db, "staff", staffId), {
-    email: (email || "").trim().toLowerCase(),
+    email: clean,
     updatedAt: serverTimestamp(),
   });
 };
 
-
-export const claimStaff = async (staffId: string, authUid: string) => {
+export const claimStaff = async (staffId: string, authUid: string): Promise<void> => {
   await updateDoc(doc(db, "staff", staffId), {
     claimedByUid: authUid,
     updatedAt: serverTimestamp(),
   });
 };
 
-
-export async function removeStaff(staffId: string) {
+export const removeStaff = async (staffId: string): Promise<void> => {
   await deleteDoc(doc(db, "staff", staffId));
-}
+};
 
 // helper opcional: salva qual staff o usuário escolheu antes de mandar magic link
-export function setPendingStaffId(staffId: string) {
+export const setPendingStaffId = (staffId: string): void => {
   try {
-    localStorage.setItem("pendingStaffId", staffId);
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("pendingStaffId", staffId);
   } catch {}
-}
-export function getPendingStaffId(): string | null {
+};
+
+export const getPendingStaffId = (): string | null => {
   try {
-    return localStorage.getItem("pendingStaffId");
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem("pendingStaffId");
   } catch {
     return null;
   }
-}
-export function clearPendingStaffId() {
+};
+
+export const clearPendingStaffId = (): void => {
   try {
-    localStorage.removeItem("pendingStaffId");
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem("pendingStaffId");
   } catch {}
-}
+};
+
