@@ -92,6 +92,50 @@ type Session = {
   isManager: boolean;
 };
 
+async function backfillMyShiftsFromName(opts: {
+  staffName: string;
+  area: StaffArea;
+  email: string;
+  uid: string;
+}) {
+  
+  const name = (opts.staffName || "").trim();
+  const email = (opts.email || "").toLowerCase().trim();
+  const uid = opts.uid;
+  if (!name || !email || !uid) return;
+
+  // pega shifts do mesmo nome/área que ainda estão sem vínculo
+  const q = query(
+    collection(db, "shifts"),
+    where("area", "==", opts.area),
+    where("employeeName", "==", name),
+    limit(300)
+  );
+
+  const snap = await getDocs(q);
+  const updates: Promise<any>[] = [];
+
+  snap.docs.forEach((d) => {
+    const s = d.data() as any;
+
+    const needsEmail = !s.employeeEmail || String(s.employeeEmail).trim() === "";
+    const needsUid = !s.employeeUid || String(s.employeeUid).trim() === "";
+
+    if (needsEmail || needsUid) {
+      updates.push(
+        updateDoc(doc(db, "shifts", d.id), {
+          employeeEmail: email,
+          employeeUid: uid,
+          updatedAt: serverTimestamp(),
+        })
+      );
+    }
+  });
+
+  await Promise.allSettled(updates);
+}
+
+
 export default function DashboardPage() {
   const [tab, setTab] = useState<Tab>("home");
 
@@ -460,12 +504,6 @@ function WeekScheduleTab({ session }: { session: Session }) {
 
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
 
-async function backfillMyShiftsFromName(opts: {
-  staffName: string;
-  area: StaffArea;
-  email: string;
-  uid: string;
-}) {
   const name = (opts.staffName || "").trim();
   const email = (opts.email || "").toLowerCase().trim();
   const uid = opts.uid;
