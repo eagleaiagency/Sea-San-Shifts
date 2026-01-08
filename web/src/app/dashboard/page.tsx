@@ -447,6 +447,29 @@ function WeekScheduleTab({ session }: { session: Session }) {
 
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
 
+// ✅ Mobile layout: em telas pequenas, a grade vira carrossel horizontal (sem cortar informação)
+const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  const mq = window.matchMedia("(max-width: 820px)");
+  const apply = () => setIsMobile(mq.matches);
+  apply();
+
+  // Safari antigo não tem addEventListener
+  // @ts-ignore
+  if (mq.addEventListener) mq.addEventListener("change", apply);
+  // @ts-ignore
+  else mq.addListener(apply);
+
+  return () => {
+    // @ts-ignore
+    if (mq.removeEventListener) mq.removeEventListener("change", apply);
+    // @ts-ignore
+    else mq.removeListener(apply);
+  };
+}, []);
+
   // ✅ sempre que mudar de semana, mantém addDate dentro da lista
   useEffect(() => {
     setAddDate((prev) => {
@@ -823,7 +846,26 @@ function WeekScheduleTab({ session }: { session: Session }) {
         </div>
       )}
 
-      <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10 }}>
+      <div
+        style={
+          isMobile
+            ? {
+                marginTop: 16,
+                display: "flex",
+                gap: 10,
+                overflowX: "auto",
+                paddingBottom: 8,
+                scrollSnapType: "x mandatory",
+                WebkitOverflowScrolling: "touch" as any,
+              }
+            : {
+                marginTop: 16,
+                display: "grid",
+                gridTemplateColumns: "repeat(7, 1fr)",
+                gap: 10,
+              }
+        }
+      >
         {weekDays.map((d) => {
           const isToday = d === todayISO();
           return (
@@ -835,6 +877,13 @@ function WeekScheduleTab({ session }: { session: Session }) {
                 border: "1px solid rgba(255,255,255,0.10)",
                 background: isToday ? "rgba(63,169,245,0.18)" : "rgba(255,255,255,0.04)",
                 minHeight: 170,
+                ...(isMobile
+                  ? {
+                      minWidth: 260,
+                      flex: "0 0 260px",
+                      scrollSnapAlign: "start",
+                    }
+                  : {}),
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -864,7 +913,7 @@ function WeekScheduleTab({ session }: { session: Session }) {
                         {s.start}–{s.end}
                       </div>
 
-                      <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>
+                      <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2, wordBreak: "break-word" }}>
                         {s.role}
                         {session.isManager || mode === "AREA" ? <span style={{ opacity: 0.85 }}> • {s.employeeName}</span> : null}
                       </div>
@@ -2368,3 +2417,4 @@ const rowCard: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.10)",
   background: "rgba(255,255,255,0.04)",
 };
+
