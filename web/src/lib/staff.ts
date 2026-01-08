@@ -82,19 +82,21 @@ export async function createStaff(name: string, area: StaffArea): Promise<string
   return ref.id;
 }
 
-export async function setStaffEmail(staffId: string, email: string) {
+export const setStaffEmail = async (staffId: string, email: string) => {
   await updateDoc(doc(db, "staff", staffId), {
-    email: email.toLowerCase(),
+    email: (email || "").trim().toLowerCase(),
     updatedAt: serverTimestamp(),
   });
-}
+};
 
-export async function claimStaff(staffId: string, authUid: string) {
+
+export const claimStaff = async (staffId: string, authUid: string) => {
   await updateDoc(doc(db, "staff", staffId), {
     claimedByUid: authUid,
     updatedAt: serverTimestamp(),
   });
-}
+};
+
 
 export async function removeStaff(staffId: string) {
   await deleteDoc(doc(db, "staff", staffId));
