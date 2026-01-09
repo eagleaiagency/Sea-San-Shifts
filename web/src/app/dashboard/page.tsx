@@ -233,7 +233,7 @@ export default function DashboardPage() {
   return (
     <Shell wide>
       <div style={{ width: "100%", maxWidth: 1150 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 34 }}>
               Sea San Shifts <span style={{ fontSize: 18, opacity: 0.8 }}>— Dashboard</span>
@@ -823,7 +823,22 @@ function WeekScheduleTab({ session }: { session: Session }) {
         </div>
       )}
 
-      <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10 }}>
+      <div
+        style={{
+          marginTop: 16,
+          width: "100%",
+          overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, minmax(140px, 1fr))",
+            gap: 10,
+            minWidth: 980,
+          }}
+        >
         {weekDays.map((d) => {
           const isToday = d === todayISO();
           return (
@@ -864,7 +879,7 @@ function WeekScheduleTab({ session }: { session: Session }) {
                         {s.start}–{s.end}
                       </div>
 
-                      <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>
+                      <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2, wordBreak: "break-word" }}>
                         {s.role}
                         {session.isManager || mode === "AREA" ? <span style={{ opacity: 0.85 }}> • {s.employeeName}</span> : null}
                       </div>
@@ -901,6 +916,7 @@ function WeekScheduleTab({ session }: { session: Session }) {
             </div>
           );
         })}
+              </div>
       </div>
 
       {session.isManager && managerView === "DRAFT" && (
@@ -2225,6 +2241,7 @@ function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }
         padding: wide ? 28 : 18,
         display: "flex",
         justifyContent: "center",
+        overflowX: "hidden",
       }}
     >
       {children}
